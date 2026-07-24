@@ -6,11 +6,8 @@ path_ref_plas = "11_Sequences/plasmid/SDHB_Ex3_HDR.fasta"
 path_bed_plas = "11_Sequences/plasmid/SDHB_Ex3_HDR.bed"
 
 
-
 sample = [ 'Name_of_sample_file_string']
 
-
-#'AN218971_S62',
 rule all:
     input:
         o1 = expand("10_Fastqc/{sample}_R{direction}_fastqc/fastqc_data.txt", sample = sample, direction = ["1","2"]),
