@@ -1,5 +1,37 @@
-# conda activate snakemake 
-# time nice -5 snakemake -s code_name.smk --use-conda --cores 8 --conda-prefix /software/tmp  --latency-wait 30
+"""
+Snakemake workflow for targeted MAVE sequencing analysis.
+
+conda activate snakemake 
+
+time nice -5 snakemake -s code_name.smk --use-conda --cores 8 --conda-prefix /software/tmp  --latency-wait 30
+
+This workflow performs the following steps:
+
+1. Runs FastQC on paired-end FASTQ files.
+2. Aligns reads to the SDHB exon 3 HDR plasmid reference using BWA-MEM.
+3. Processes alignments with samtools fixmate, sort, and markdup.
+4. Indexes the duplicate-marked BAM files.
+5. Generates quality-filtered pileup files using samtools mpileup with:
+       - minimum mapping quality = 30
+       - minimum base quality = 30
+       - maximum depth = 200,000
+6. Restricts pileup generation to the SDHB_Ex3_HDR:294-465 region.
+
+Duplicate-marked reads are retained during pileup generation (`--ff 0`) because
+coordinate-based duplicate marking is not appropriate for this targeted MAVE
+library, where independent molecules frequently share identical alignment
+coordinates.
+
+Input:
+    - Paired-end FASTQ files in 01_Fastq/
+    - SDHB_Ex3_HDR reference FASTA
+
+Output:
+    - FastQC reports
+    - Duplicate-marked BAM files and indexes
+    - Quality-filtered pileup files
+"""
+
 
 #Paths
 path_ref_plas = "11_Sequences/plasmid/SDHB_Ex3_HDR.fasta"
