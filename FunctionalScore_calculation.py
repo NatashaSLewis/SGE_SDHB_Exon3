@@ -1,3 +1,28 @@
+"""
+Functional-score calculation from variant allele frequencies at two timepoints.
+
+This script performs the following steps:
+
+1. Reads variant data from the `TP` worksheets of two Excel files representing
+   an earlier and a later experimental timepoint.
+2. Merges the datasets using genomic position, reference allele, and alternate
+   allele:
+   POS, REF, and ALT
+3. Uses an outer merge so that variants present at only one timepoint are
+   retained.
+4. Replaces missing or very low allele frequencies with a pseudocount:
+   epsilon = 6 × 10⁻⁵
+   This value corresponds approximately to 10 alternate reads at the expected
+   sequencing depth and prevents division by zero or undefined logarithms.
+5. Calculates the functional score for each variant using:
+   Functional_score = log2(AF_later / AF_earlier)
+6. Writes the variant identifiers and calculated functional scores to an Excel
+   file.
+
+A positive functional score indicates an increase in variant allele frequency
+between the two timepoints, whereas a negative score indicates a decrease.
+
+"""
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
