@@ -43,12 +43,10 @@ import matplotlib.pyplot as plt
 # Input
 # ----------------------------
 
-'''
+
 file_path = "path/to/file/file_with_rawFunctional_scores.xlsx"
 output_path = "path/to/file/file_with_normalizedscores_and_probabilityClass.xlsx"
-'''
-file_path = "/mnt/nct-zfs/CMTD/01_Projects/999-2025/00_Users/lewisnata/05_Variants/FL/TableS3_MAVE_mainTableFinal.xlsx"
-output_path = "/mnt/nct-zfs/CMTD/01_Projects/999-2025/00_Users/lewisnata/05_Variants/FL/temp7.xlsx"
+
 
 
 df = pd.read_excel(file_path, sheet_name="Sheet1", engine="openpyxl")
