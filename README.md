@@ -1,133 +1,276 @@
-The analysis pipeline consists of 6 separate codes to be run in sequential steps
-Step1: Snakemake pipeline guide 
-Step2: pileup file analyses 
-Step3: True positives from pileup 
-Step4: Calculate Functional scores 
-Step5: Normalize functional scores, 2GMM and probability of pathogenicity
-Step6: Integration of ploidy data
+# Analysis Pipeline
 
-Each code has explanation of workflow. This docucument is for specifying the sequence of analysis.
+The analysis pipeline consists of **six sequential steps**. Each step is implemented as a separate script and should be run in the order listed below.
 
-SNAKEMAKE:
-Step1: Snakemake pipeline guide:
+| Step | Description |
+|------|-------------|
+| **Step 1** | Snakemake pipeline |
+| **Step 2** | Pileup file analysis |
+| **Step 3** | Identification of true positives from pileup files |
+| **Step 4** | Calculation of functional scores |
+| **Step 5** | Functional score normalization, 2GMM fitting, and probability of pathogenicity |
+| **Step 6** | Integration of ploidy data |
+
+Each script contains comments describing its workflow. This document provides the recommended execution order and setup instructions for each step.
+
+---
+
+# Step 1: Snakemake Pipeline
+
 ## Requirements
--Snakemake 7.24.2
 
-Paired-end sequencing quality control, plasmid alignment, duplicate marking,
-and pileup generation using Snakemake.
+Create a Conda or Micromamba environment containing:
 
-Before running the workflow:
-Activate the Snakemake environment:
+- Snakemake 7.24.2
+- FastQC v0.11.8
+- bwa 0.7.17
+- samtools 1.7
+
+This workflow performs:
+
+- Paired-end sequencing quality control
+- Plasmid alignment
+- Duplicate marking (Go to notes: duplicates are retained for downstream pileup analysis)
+- Pileup generation
+
+## Before Running the Workflow
+
+### 1. Activate the Snakemake environment
+
+```bash
 conda activate snakemake
-Place paired-end FASTQ files in the following directory:
-01_Fastq/                        ###adjust according to your file format
-Files must follow this naming convention:
+```
+
+### 2. Place paired-end FASTQ files
+
+Place the paired-end FASTQ files in:
+
+```text
+01_Fastq/
+```
+
+> **Note:** Adjust this path according to your directory structure.
+
+Files must follow the naming convention:
+
+```text
 <sample>_R1_001.fastq.gz
 <sample>_R2_001.fastq.gz
-Add each sample name to the sample list without the read suffixes:
-sample = ["Sample1","Sample2"]
+```
 
-Provide the plasmid reference files:
-11_Sequences/plasmid/SDHB_Ex3_HDR.fasta       ###adjust according to your file format
-11_Sequences/plasmid/SDHB_Ex3_HDR.bed        ###adjust according to your file format
-    
-The FASTA reference must be indexed for BWA before running the workflow:
+### 3. Define the sample list
+
+Edit the Snakemake file and provide the sample names **without** the read suffixes:
+
+```python
+sample = ["Sample1", "Sample2"]
+```
+
+### 4. Provide the reference files
+
+Place the plasmid reference files in:
+
+```text
+11_Sequences/plasmid/SDHB_Ex3_HDR.fasta
+11_Sequences/plasmid/SDHB_Ex3_HDR.bed
+```
+
+> **Note:** Adjust these paths according to your directory structure.
+
+### 5. Index the reference FASTA
+
+Before running the workflow, create the BWA index:
+
+```bash
 bwa index 11_Sequences/plasmid/SDHB_Ex3_HDR.fasta
-A FASTA index may also be required by samtools:
-samtools faidx 11_Sequences/plasmid/SDHB_Ex3_HDR.fasta
+```
 
-Ensure that the Conda environment definitions used by the rules are
-available:
-1. fastqc
-2. bwa
-3. samtools
-    
-Run the workflow using:
+Create the FASTA index required by samtools:
+
+```bash
+samtools faidx 11_Sequences/plasmid/SDHB_Ex3_HDR.fasta
+```
+
+## Run the Workflow
+
+Execute the pipeline using:
+
+```bash
 time nice -n 5 snakemake \
-    -s code_name.smk \  ###adjust according to the snakemake code saved
+    -s code_name.smk \
     --use-conda \
     --cores 8 \
     --conda-prefix /software/tmp \
     --latency-wait 30
-    
-Principal output files are written to: #adjust according to your file path
-10_Fastqc/       FastQC reports
-02_Mapping/      Initial BAM alignments
-03_MarkedDups/   Sorted, duplicate-marked, and indexed BAM files
-05_Variants/     Quality-filtered pileup files
+```
 
-Important considerations:
-•	The region name SDHB_Ex3_HDR must exactly match the sequence identifier in
-the reference FASTA.
-•	The requested region SDHB_Ex3_HDR:294-465 uses one-based genomic
-coordinates.
-•	Duplicate reads are marked in the BAM but are retained in the pileup.
-•	Because --ff 0 removes the default flag-exclusion mask, secondary and
-QC-failed alignments may also be included unless they were removed earlier.
-•	The maximum pileup depth is set to 200,000 reads per position (to override default setting)
+> **Note:** Replace `code_name.smk` with the name of your Snakemake workflow.
 
+## Output
 
-PYTHON:
-for all following steps 
-## Requirements
-- Python 3.6
-  
-Step2: pileup file analyses 
-Relevant packages before running code
-import pandas as pd
-from collections import Counter
-import re
+The principal output directories are:
 
-command:
+```text
+10_Fastqc/      FastQC reports
+02_Mapping/     Initial BAM alignments
+03_MarkedDups/  Sorted, duplicate-marked, and indexed BAM files
+05_Variants/    Quality-filtered pileup files
+```
+
+> **Note:** Adjust these paths according to your output directory structure.
+
+## Important Notes
+
+- The region name `SDHB_Ex3_HDR` **must exactly match** the sequence identifier in the reference FASTA.
+- The requested region `SDHB_Ex3_HDR:294-465` uses **1-based genomic coordinates**.
+- Duplicate reads are marked in the BAM files but retained in the pileup. Because coordinate-based duplicate marking is not appropriate for this targeted MAVE library, where independent molecules frequently share   identical alignment coordinates.
+- Because `--ff 0` removes the default flag-exclusion mask, secondary and QC-failed alignments may also be included unless they were removed earlier.
+- The maximum pileup depth is set to **200,000 reads per position**, overriding the default samtools setting.
+
+# Python Analysis Steps
+
+The following analysis steps require **Python 3.6**.
+
+## General Requirements
+
+Create and activate a Python environment before running Steps 2–6.
+
+```bash
+conda create -n analysis python=3.6
+conda activate analysis
+```
+
+Install the required Python packages:
+
+```bash
+pip install pandas numpy statsmodels scikit-learn matplotlib openpyxl
+```
+
+> **Note:** `openpyxl` is required for reading and writing Excel (`.xlsx`) files with pandas.
+
+---
+
+# Step 2: Pileup File Analysis
+
+This step processes the pileup files generated by the Snakemake workflow.
+
+## Required Python Packages
+
+- pandas
+- collections (included with Python)
+- re (included with Python)
+
+## Run the Script
+
+```bash
 python 02_pileupdata_variants.py
+```
 
+---
 
+# Step 3: Identify True-Positive Variants
 
-Step3: True positives from pileup 
-Relevant packages before running code
-import pandas as pd
+This step identifies true-positive variants from the analyzed pileup output.
 
-Additional requirement: 
-xlsx with POS, REF, ALT of your SNV library 
+## Required Python Packages
 
-command:
+- pandas
+
+## Additional Input
+
+Provide an Excel (`.xlsx`) file containing the SNV library with the following columns:
+
+```text
+POS
+REF
+ALT
+```
+
+## Run the Script
+
+```bash
 python 03_analyzed_pileup_output.py
+```
 
+---
 
+# Step 4: Calculate Functional Scores
 
-Step4: Calculate Functional scores 
-Relevant packages before running code
-import pandas as pd
-import numpy as np
-import statsmodels.api as sm
+This step calculates functional scores from the experimental data.
 
-Additional requirement: 
-separate xlsx for timepoint 1 and 2 
+## Required Python Packages
 
-command:
+- pandas
+- numpy
+- statsmodels
+
+## Additional Input
+
+Provide separate Excel (`.xlsx`) files for:
+
+- Time point 1
+- Time point 2
+
+## Run the Script
+
+```bash
 python FunctionalScore_calculation.py
+```
 
+---
 
+# Step 5: Normalize Functional Scores and Fit the 2GMM
 
-Step5: Normalize functional scores, 2GMM and probability of pathogenicity
-Relevant packages before running code
-import numpy as np
-from sklearn.mixture import GaussianMixture
-import pandas as pd
-import matplotlib.pyplot as plt
+This step performs:
 
-command:
+- Functional score normalization
+- Two-component Gaussian mixture model (2GMM) fitting
+- Calculation of the probability of pathogenicity
+
+## Required Python Packages
+
+- numpy
+- pandas
+- matplotlib
+- scikit-learn
+
+## Run the Script
+
+```bash
 python 05_Normalization_and_2GMM.py
+```
 
+---
 
+# Step 6: Integrate Ploidy Scores
 
-Step6: Integration of ploidy scores
-Relevant packages before running code
-import numpy as np
-import pandas as pd
+This step integrates ploidy scores with the posterior probability results.
 
-command:
+## Required Python Packages
+
+- numpy
+- pandas
+
+## Run the Script
+
+```bash
 python 06_Posterior_probability_integrated_output.py
+```
 
+---
+
+## Execution Order
+
+Run the scripts in the following order:
+
+```bash
+python 02_pileupdata_variants.py
+python 03_analyzed_pileup_output.py
+python FunctionalScore_calculation.py
+python 05_Normalization_and_2GMM.py
+python 06_Posterior_probability_integrated_output.py
+```
+
+Each step uses the output generated by the previous step.
 
 
